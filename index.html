@@ -77,8 +77,10 @@
       };
 
       const open = async () => {
-        const match = location.hash.match(/^#k=([0-9a-f]{64})$/i);
-        if (!match) {
+        const queryKey = new URLSearchParams(location.search).get('k');
+        const hashKey = location.hash.match(/^#k=([0-9a-f]{64})$/i)?.[1];
+        const linkKey = queryKey || hashKey;
+        if (!linkKey || !/^[0-9a-f]{64}$/i.test(linkKey)) {
           fail();
           return;
         }
@@ -90,7 +92,7 @@
           });
           const key = await crypto.subtle.importKey(
             'raw',
-            fromHex(match[1]),
+            fromHex(linkKey),
             { name: 'AES-GCM' },
             false,
             ['decrypt'],
