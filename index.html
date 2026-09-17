@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+  <meta name="referrer" content="no-referrer">
+  <title>めぐみさんグルコン サマリー</title>
+  <meta property="og:title" content="めぐみさんグルコン サマリー">
+  <meta property="og:description" content="専用リンクから閲覧する共有サマリーです">
+  <meta property="og:type" content="article">
+  <meta property="og:image" content="https://youco-kurukuru.github.io/megumi-summary-private-link/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f2f3f7;
+      color: #252a40;
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", sans-serif;
+    }
+    main {
+      width: min(100%, 520px);
+      padding: 34px 28px;
+      background: #fff;
+      border-top: 5px solid #293d9b;
+      border-radius: 8px;
+      box-shadow: 0 12px 34px rgba(41, 61, 155, .12);
+      text-align: center;
+    }
+    h1 { margin: 0 0 14px; color: #293d9b; font-size: 22px; }
+    p { margin: 0; color: #606783; line-height: 1.8; }
+    .spinner {
+      width: 30px;
+      height: 30px;
+      margin: 0 auto 18px;
+      border: 3px solid #d8def3;
+      border-top-color: #293d9b;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="spinner" aria-hidden="true"></div>
+    <h1>サマリーを開いています</h1>
+    <p id="status">専用リンクを確認しています。</p>
+  </main>
+  <script>
+    (() => {
+      const status = document.getElementById('status');
+
+      const fromHex = (hex) => {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < bytes.length; i += 1) {
+          bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+        }
+        return bytes;
+      };
+
+      const fromBase64 = (value) => {
+        const binary = atob(value);
+        return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      };
+
+      const fail = () => {
+        document.querySelector('.spinner').style.display = 'none';
+        document.querySelector('h1').textContent = '専用リンクが必要です';
+        status.textContent = 'このページは、受け取った専用リンクからのみ閲覧できます。';
+      };
+
+      const open = async () => {
+        const match = location.hash.match(/^#k=([0-9a-f]{64})$/i);
+        if (!match) {
+          fail();
+          return;
+        }
+
+        try {
+          const payload = await fetch('content.enc', { cache: 'no-store' }).then((response) => {
+            if (!response.ok) throw new Error('payload');
+            return response.json();
+          });
+          const key = await crypto.subtle.importKey(
+            'raw',
+            fromHex(match[1]),
+            { name: 'AES-GCM' },
+            false,
+            ['decrypt'],
+          );
+          const plain = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: fromBase64(payload.iv) },
+            key,
+            fromBase64(payload.data),
+          );
+          history.replaceState(null, '', location.pathname + location.search + location.hash);
+          document.open();
+          document.write(new TextDecoder().decode(plain));
+          document.close();
+        } catch {
+          fail();
+        }
+      };
+
+      open();
+    })();
+  </script>
+</body>
+</html>
